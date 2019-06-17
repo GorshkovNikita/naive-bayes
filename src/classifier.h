@@ -7,9 +7,7 @@
 
 #include <string>
 #include <vector>
-#include "Eigen/Dense"
 
-using Eigen::ArrayXd;
 using std::string;
 using std::vector;
 
@@ -38,6 +36,8 @@ public:
 
     vector<string> possible_labels = {"left", "keep", "right"};
     vector<double> priors;
+    vector<vector<double>> means;
+    vector<vector<double>> stds;
 };
 
 #endif //NAIVE_BAYES_CLASSIFIER_H

@@ -8,8 +8,8 @@
 #include <vector>
 #include <iostream>
 #include <random>
+#include "helpers.h"
 
-using Eigen::ArrayXd;
 using std::string;
 using std::vector;
 
@@ -18,7 +18,6 @@ GNB::GNB() {
     /**
      * TODO: Initialize GNB, if necessary. May depend on your implementation.
      */
-
 }
 
 GNB::~GNB() {}
@@ -38,22 +37,48 @@ void GNB::train(const vector<vector<double>> &data,
      *
      * TODO: Implement the training function for your classifier.
      */
-    vector<int> number_of_class{0,0,0};
+    vector<int> number_of_class_samples(possible_labels.size(), 0);
+    means = vector<vector<double>>(possible_labels.size(), {0,0,0,0});
+    stds = vector<vector<double>>(possible_labels.size(), {0,0,0,0});
     for (int i = 0; i < labels.size(); i++) {
+        int label_idx;
         if (labels[i] == "left") {
-            number_of_class[0]++;
+            label_idx = 0;
         } else if (labels[i] == "keep") {
-            number_of_class[1]++;
+            label_idx = 1;
         } else {
-            number_of_class[2]++;
+            label_idx = 2;
+        }
+        number_of_class_samples[label_idx]++;
+        for (int j = 0; j < data[i].size(); j++) {
+            means[label_idx][j] += data[i][j];
         }
     }
-    for (int i = 0; i < number_of_class.size(); i++) {
-        priors.push_back((double)number_of_class[i] / labels.size());
+    for (int i = 0; i < number_of_class_samples.size(); i++) {
+        priors.push_back((double)number_of_class_samples[i] / labels.size());
+        for (int j = 0; j < means[i].size(); j++) {
+            means[i][j] /= number_of_class_samples[i];
+        }
     }
-//   for (int i = 0; i < priors.size(); i++) {
-//       std::cout << priors[i] << " " << std::endl;
-//   }
+    for (int i = 0; i < labels.size(); i++) {
+        int label_idx;
+        if (labels[i] == "left") {
+            label_idx = 0;
+        } else if (labels[i] == "keep") {
+            label_idx = 1;
+        } else {
+            label_idx = 2;
+        }
+        for (int j = 0; j < data[i].size(); j++) {
+            stds[label_idx][j] += (data[i][j] - means[label_idx][j]) * (data[i][j] - means[label_idx][j]);
+        }
+    }
+    for (int i = 0; i < stds.size(); i++) {
+        for (int j = 0; j < stds[i].size(); j++) {
+            stds[i][j] /= number_of_class_samples[i];
+            stds[i][j] = sqrt(stds[i][j]);
+        }
+    }
 }
 
 string GNB::predict(const vector<double> &sample) {
@@ -68,5 +93,28 @@ string GNB::predict(const vector<double> &sample) {
      * TODO: Complete this function to return your classifier's prediction
      */
 
-    return this -> possible_labels[1];
+    vector<double> class_probabilities{0.0, 0.0, 0.0, 0.0};
+    double pb_of_data = 0.0;
+    for (int i = 0; i < possible_labels.size(); i++) {
+        float pb_of_x_given_class = 1.0;
+        for (int j = 0; j < sample.size(); j++) {
+            pb_of_x_given_class *= Helpers::normpdf(sample[j], means[i][j], stds[i][j]);
+        }
+        pb_of_data += pb_of_x_given_class * priors[i];
+        class_probabilities[i] = pb_of_x_given_class * priors[i];
+    }
+
+    for (int i = 0; i < possible_labels.size(); i++) {
+        class_probabilities[i] /= pb_of_data;
+    }
+
+    double best_fit = class_probabilities[0];
+    int label_idx = 0;
+    for (int i = 1; i < class_probabilities.size(); i++) {
+        if (class_probabilities[i] > best_fit) {
+            best_fit = class_probabilities[i];
+            label_idx = i;
+        }
+    }
+    return this -> possible_labels[label_idx];
 }
